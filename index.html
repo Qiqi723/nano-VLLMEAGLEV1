@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>在 nano-vLLM 上部署 EAGLE v1</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #20242c;
+      --muted: #5d6675;
+      --line: #d9dee8;
+      --blue: #2563eb;
+      --orange: #d97706;
+      --green: #15803d;
+      --red: #dc2626;
+      --code: #101828;
+      --code-bg: #f3f5f9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.65;
+    }
+
+    .page {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 36px 28px 72px;
+    }
+
+    header {
+      margin-bottom: 34px;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 34px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 46px 0 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 24px 0 12px;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    .lead {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fbfcff;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .note {
+      margin: 18px 0;
+      padding: 14px 16px;
+      border-left: 4px solid var(--blue);
+      border-radius: 10px;
+      background: #eef4ff;
+      color: #243b66;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+      margin: 18px 0 34px;
+    }
+
+    .card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--panel);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcff;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--blue);
+    }
+
+    .dot.orange {
+      background: var(--orange);
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      background: var(--code-bg);
+      color: var(--code);
+      font-size: 13px;
+      line-height: 1.5;
+      tab-size: 4;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", Menlo, Monaco, monospace;
+    }
+
+    .diagram {
+      display: grid;
+      gap: 14px;
+      margin: 18px 0 34px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .node {
+      min-width: 150px;
+      flex: 1 1 150px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfcff;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .node small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .node.target {
+      border-color: #93b4ff;
+      background: #eef4ff;
+    }
+
+    .node.draft {
+      border-color: #f4bf75;
+      background: #fff7ed;
+    }
+
+    .node.accept {
+      border-color: #86d29d;
+      background: #effaf2;
+    }
+
+    .node.reject {
+      border-color: #f3a3a3;
+      background: #fff1f1;
+    }
+
+    .arrow {
+      align-self: center;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .split-flow {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .summary-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+
+    .summary-card strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .summary-card span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 920px) {
+      .page {
+        padding: 22px 14px 48px;
+      }
+
+      header {
+        padding: 22px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .compare,
+      .split-flow,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>在 nano-vLLM 上部署 EAGLE v1</h1>
+      <p class="lead">
+        这是一份面向 GitHub Pages 的网页版本。它用真正的 HTML/CSS 做左右两栏对照：
+        左栏展示原始 nano-vLLM 关键代码，右栏展示接入 EAGLE v1 后的修改代码。
+      </p>
+      <div class="badges">
+        <span class="badge">nano-vLLM</span>
+        <span class="badge">EAGLE v1</span>
+        <span class="badge">Speculative Decoding</span>
+        <span class="badge">Greedy Decode</span>
+        <span class="badge">GitHub Pages</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>0. 整体目标</h2>
+      <div class="summary-grid">
+        <div class="summary-card"><strong>默认路径不变</strong><span>不传 <code>eagle_model</code> 时继续使用原始 nano-vLLM decode。</span></div>
+        <div class="summary-card"><strong>EAGLE 显式启用</strong><span>只有单序列、greedy、非 prefill 阶段进入 EAGLE。</span></div>
+        <div class="summary-card"><strong>一次验证多 token</strong><span>draft 生成候选，target model 负责最终验证。</span></div>
+        <div class="summary-card"><strong>KV 状态安全</strong><span>预留 lookahead block，并回收未使用的 block。</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>1. EAGLE v1 工作流程</h2>
+      <div class="diagram">
+        <div class="flow">
+          <div class="node">Input Prompt<small>用户输入</small></div>
+          <div class="arrow">→</div>
+          <div class="node target">Target Prefill<small>写入 KV cache，产生 feature</small></div>
+          <div class="arrow">→</div>
+          <div class="node draft">EAGLE Draft<small>预测 t1, t2, t3, t4</small></div>
+          <div class="arrow">→</div>
+          <div class="node target">Target Verify<small>一次验证多个候选 token</small></div>
+          <div class="arrow">→</div>
+          <div class="node accept">Accept Tokens<small>提交连续匹配 token</small></div>
+          <div class="arrow">→</div>
+          <div class="node">Next Round<small>更新 sequence 和 KV cache</small></div>
+        </div>
+        <p class="note">
+          EAGLE 不直接决定最终输出。最终 token 仍由 target model 验证决定，所以 greedy 场景可以保持和 vanilla decoding 一致。
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 原始 nano-vLLM 与 EAGLE Decode 对比</h2>
+      <div class="split-flow">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>Vanilla nano-vLLM Decode</div>
+          <div class="diagram">
+            <div class="flow">
+              <div class="node target">Target Step 1<small>token A</small></div>
+              <div class="node target">Target Step 2<small>token B</small></div>
+              <div class="node target">Target Step 3<small>token C</small></div>
+              <div class="node target">Target Step 4<small>token D</small></div>
+            </div>
+            <p>特点：每生成一个 token，都要调用一次 target model decode。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>nano-vLLM + EAGLE Decode</div>
+          <div class="diagram">
+            <div class="flow">
+              <div class="node target">Target Feature<small>second-top-layer feature</small></div>
+              <div class="node draft">Draft Tokens<small>A, B, C, D</small></div>
+              <div class="node target">Verify Once<small>target logits</small></div>
+              <div class="node accept">Accept Together<small>append multiple tokens</small></div>
+            </div>
+            <p>特点：target model 一次验证多个 draft token，减少 decode 轮数。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Config：增加 EAGLE 开关</h2>
+      <div class="compare">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>原始 nano-vLLM</div>
+<pre><code>@dataclass
+class Config:
+    model: str
+    max_num_batched_tokens: int = 16384
+    max_num_seqs: int = 512
+    max_model_len: int = 4096
+    gpu_memory_utilization: float = 0.9
+    tensor_parallel_size: int = 1
+    enforce_eager: bool = False
+    hf_config: AutoConfig | None = None
+    eos: int = -1
+    kvcache_block_size: int = 256
+    num_kvcache_blocks: int = -1
+
+    def __post_init__(self):
+        assert os.path.isdir(self.model)
+        assert self.kvcache_block_size % 256 == 0
+        assert 1 &lt;= self.tensor_parallel_size &lt;= 8
+        self.hf_config = AutoConfig.from_pretrained(self.model)</code></pre>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>接入 EAGLE 后</div>
+<pre><code>@dataclass
+class Config:
+    model: str
+    max_num_batched_tokens: int = 16384
+    max_num_seqs: int = 512
+    max_model_len: int = 4096
+    gpu_memory_utilization: float = 0.9
+    tensor_parallel_size: int = 1
+    enforce_eager: bool = False
+
+    enable_quant: bool = False
+    quant_mode: str = "none"
+    eagle_model: str | None = None
+    eagle_max_draft_tokens: int = 4
+
+    hf_config: AutoConfig | None = None
+    eos: int = -1
+    kvcache_block_size: int = 256
+    num_kvcache_blocks: int = -1
+
+    def __post_init__(self):
+        assert os.path.isdir(self.model)
+        if self.eagle_model is not None:
+            assert os.path.isdir(self.eagle_model)
+            assert self.eagle_max_draft_tokens &gt;= 1
+        assert self.kvcache_block_size % 256 == 0
+        assert 1 &lt;= self.tensor_parallel_size &lt;= 8
+        self.hf_config = AutoConfig.from_pretrained(self.model)</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. SamplingParams / Sampler：支持 greedy</h2>
+      <div class="compare">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>原始 nano-vLLM</div>
+<pre><code>@dataclass
+class SamplingParams:
+    temperature: float = 1.0
+    max_tokens: int = 64
+    ignore_eos: bool = False
+
+    def __post_init__(self):
+        assert self.temperature &gt; 1e-10, \
+            "greedy sampling is not permitted"
+
+
+class Sampler(nn.Module):
+
+    @torch.compile
+    def forward(self, logits, temperatures):
+        logits = logits.float().div_(temperatures.unsqueeze(dim=1))
+        probs = torch.softmax(logits, dim=-1)
+        sample_tokens = probs.div_(
+            torch.empty_like(probs)
+            .exponential_(1)
+            .clamp_min_(1e-10)
+        ).argmax(dim=-1)
+        return sample_tokens</code></pre>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>接入 EAGLE 后</div>
+<pre><code>@dataclass
+class SamplingParams:
+    temperature: float = 1.0
+    max_tokens: int = 64
+    ignore_eos: bool = False
+
+    def __post_init__(self):
+        assert self.temperature &gt;= 0, \
+            "temperature must be non-negative"
+
+
+class Sampler(nn.Module):
+
+    def forward(self, logits, temperatures):
+        if torch.all(temperatures &lt;= 1e-10):
+            return logits.argmax(dim=-1)
+
+        logits = logits.float().div_(temperatures.unsqueeze(dim=1))
+        probs = torch.softmax(logits, dim=-1)
+        sample_tokens = probs.div_(
+            torch.empty_like(probs)
+            .exponential_(1)
+            .clamp_min_(1e-10)
+        ).argmax(dim=-1)
+        return sample_tokens</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>5. Qwen3Model：暴露 EAGLE Feature</h2>
+      <div class="compare">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>原始 nano-vLLM</div>
+<pre><code>class Qwen3Model(nn.Module):
+
+    def forward(self, input_ids, positions):
+        hidden_states = self.embed_tokens(input_ids)
+        residual = None
+
+        for layer in self.layers:
+            hidden_states, residual = layer(
+                positions,
+                hidden_states,
+                residual,
+            )
+
+        hidden_states, _ = self.norm(hidden_states, residual)
+        return hidden_states</code></pre>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>接入 EAGLE 后</div>
+<pre><code>class Qwen3Model(nn.Module):
+
+    def forward(
+        self,
+        input_ids,
+        positions,
+        return_eagle_features: bool = False,
+    ):
+        hidden_states = self.embed_tokens(input_ids)
+        residual = None
+        eagle_features = None
+
+        for i, layer in enumerate(self.layers):
+            if return_eagle_features and i == len(self.layers) - 1:
+                eagle_features = (
+                    hidden_states if residual is None
+                    else hidden_states + residual
+                )
+            hidden_states, residual = layer(
+                positions,
+                hidden_states,
+                residual,
+            )
+
+        hidden_states, _ = self.norm(hidden_states, residual)
+        if return_eagle_features:
+            return hidden_states, eagle_features
+        return hidden_states</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. 新增 EAGLE Draft Model</h2>
+      <div class="compare">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>原始 nano-vLLM</div>
+<pre><code>nanovllm/
+  config.py
+  llm.py
+  sampling_params.py
+  engine/
+    llm_engine.py
+    model_runner.py
+    scheduler.py
+    block_manager.py
+  models/
+    qwen3.py
+
+# 没有 eagle.py
+# 没有 EAGLE draft model
+# 没有 draft 权重加载逻辑</code></pre>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>接入 EAGLE 后</div>
+<pre><code>class EagleDraftModel(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(
+            config.vocab_size,
+            config.hidden_size,
+            getattr(config, "pad_token_id", 0),
+        )
+        self.fc = nn.Linear(
+            2 * config.hidden_size,
+            config.hidden_size,
+            bias=getattr(config, "bias", True),
+        )
+        self.layers = nn.ModuleList([
+            EagleDecoderLayer(config)
+            for _ in range(config.num_hidden_layers)
+        ])
+
+    def forward(self, features, input_ids, position_offset=0):
+        inputs_embeds = self.embed_tokens(input_ids).to(features.dtype)
+        x = self.fc(torch.cat((inputs_embeds, features), dim=-1))
+        positions = torch.arange(
+            position_offset,
+            position_offset + input_ids.size(1),
+            device=input_ids.device,
+        )
+        for layer in self.layers:
+            x = layer(x, positions)
+        return x</code></pre>
+        </div>
+      </div>
+      <p class="note">真实加速需要训练好的 EAGLE draft 权重。只有 config 的 dummy draft 可以验证流程，但不能代表真实性能。</p>
+    </section>
+
+    <section>
+      <h2>7. ModelRunner：加载 draft 并执行 verify</h2>
+      <div class="compare">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>原始 nano-vLLM</div>
+<pre><code>self.model = Qwen3ForCausalLM(hf_config)
+load_model(self.model, config.model)
+self.sampler = Sampler()
+self.warmup_model()
+self.allocate_kv_cache()
+
+
+def run(self, seqs, is_prefill):
+    input_ids, positions = (
+        self.prepare_prefill(seqs)
+        if is_prefill
+        else self.prepare_decode(seqs)
+    )
+    temperatures = self.prepare_sample(seqs)
+    logits = self.run_model(input_ids, positions, is_prefill)
+    token_ids = self.sampler(logits, temperatures).tolist()
+    reset_context()
+    return token_ids</code></pre>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>接入 EAGLE 后</div>
+<pre><code>self.model = Qwen3ForCausalLM(hf_config)
+load_model(self.model, config.model)
+self.eagle_draft = None
+
+if config.eagle_model is not None:
+    assert self.world_size == 1
+    self.eagle_draft = load_eagle_draft(
+        config.eagle_model,
+        self.model,
+        hf_config,
+    )
+    self.eagle_draft.to(
+        device="cuda",
+        dtype=hf_config.torch_dtype,
+    ).eval()
+
+
+def run_eagle(self, seqs):
+    seq = seqs[0]
+
+    input_ids, positions = self.prepare_decode(seqs)
+    logits, features = self.run_model_with_features(input_ids, positions)
+    seed_token = int(torch.argmax(logits[-1], dim=-1).item())
+    seed_feature = features[-1]
+    reset_context()
+
+    candidates = self.generate_eagle_candidates(
+        seq,
+        seed_token,
+        seed_feature,
+    )
+
+    verify_ids = [seq.last_token] + candidates
+    input_ids, positions = self.prepare_extend(seq, verify_ids)
+    logits, features = self.run_model_with_features(input_ids, positions)
+    reset_context()
+
+    accepted = []
+    for i, candidate in enumerate(candidates):
+        target_token = int(torch.argmax(logits[i], dim=-1).item())
+        if target_token == candidate:
+            accepted.append(candidate)
+        else:
+            accepted.append(target_token)
+            return accepted
+
+    accepted.append(int(torch.argmax(logits[len(candidates)], dim=-1).item()))
+    return accepted</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>8. Scheduler 与 BlockManager：一次接受多个 token</h2>
+      <div class="compare">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>原始 nano-vLLM</div>
+<pre><code>def schedule(self):
+    ...
+    while self.running and num_seqs &lt; self.max_num_seqs:
+        seq = self.running.popleft()
+        while not self.block_manager.can_append(seq):
+            ...
+        else:
+            num_seqs += 1
+            self.block_manager.may_append(seq)
+            scheduled_seqs.append(seq)
+
+
+def postprocess(self, seqs, token_ids):
+    for seq, token_id in zip(seqs, token_ids):
+        seq.append_token(token_id)
+        if should_finish(seq, token_id):
+            seq.status = SequenceStatus.FINISHED
+            self.block_manager.deallocate(seq)
+            self.running.remove(seq)</code></pre>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>接入 EAGLE 后</div>
+<pre><code>def schedule(self, lookahead_slots: int = 1):
+    ...
+    while self.running and num_seqs &lt; self.max_num_seqs:
+        seq = self.running.popleft()
+        while not self.block_manager.can_append_slots(seq, lookahead_slots):
+            ...
+        else:
+            num_seqs += 1
+            if lookahead_slots == 1:
+                self.block_manager.may_append(seq)
+            else:
+                self.block_manager.ensure_append_slots(seq, lookahead_slots)
+            scheduled_seqs.append(seq)
+
+
+def postprocess_many(self, seq, token_ids):
+    old_len = len(seq)
+    for token_id in token_ids:
+        if seq.num_completion_tokens &gt;= seq.max_tokens:
+            break
+        seq.append_token(token_id)
+        if not seq.ignore_eos and token_id == self.eos:
+            break
+
+    self.block_manager.trim_unused_blocks(seq)
+    self.block_manager.commit_appended_tokens(seq, old_len)
+
+    if should_finish(seq):
+        seq.status = SequenceStatus.FINISHED
+        self.block_manager.deallocate(seq)
+        self.running.remove(seq)</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>9. LLMEngine：选择 vanilla path 或 EAGLE path</h2>
+      <div class="compare">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>原始 nano-vLLM</div>
+<pre><code>def step(self):
+    seqs, is_prefill = self.scheduler.schedule()
+    token_ids = self.model_runner.call("run", seqs, is_prefill)
+    self.scheduler.postprocess(seqs, token_ids)
+
+    outputs = [
+        (seq.seq_id, seq.completion_token_ids)
+        for seq in seqs
+        if seq.is_finished
+    ]
+    num_tokens = (
+        sum(len(seq) for seq in seqs)
+        if is_prefill
+        else -len(seqs)
+    )
+    return outputs, num_tokens</code></pre>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot orange"></span>接入 EAGLE 后</div>
+<pre><code>def step(self):
+    can_try_eagle = (
+        self.config.eagle_model is not None
+        and not self.scheduler.waiting
+        and len(self.scheduler.running) == 1
+    )
+    lookahead_slots = (
+        self.config.eagle_max_draft_tokens + 1
+        if can_try_eagle
+        else 1
+    )
+    seqs, is_prefill = self.scheduler.schedule(lookahead_slots)
+
+    if (
+        self.config.eagle_model is not None
+        and not is_prefill
+        and len(seqs) == 1
+        and seqs[0].temperature &lt;= 1e-10
+    ):
+        token_ids = self.model_runner.call("run_eagle", seqs)
+        self.scheduler.postprocess_many(seqs[0], token_ids)
+    else:
+        token_ids = self.model_runner.call("run", seqs, is_prefill)
+        self.scheduler.postprocess(seqs, token_ids)
+
+    outputs = [
+        (seq.seq_id, seq.completion_token_ids)
+        for seq in seqs
+        if seq.is_finished
+    ]
+    num_tokens = (
+        sum(len(seq) for seq in seqs)
+        if is_prefill
+        else -len(token_ids)
+    )
+    return outputs, num_tokens</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>10. 运行与对比</h2>
+<pre><code>cd /home/legion/nano-vllm
+
+~/vllm_deploy/.venv/bin/python bench_eagle.py \
+  --max-tokens 64 \
+  --prompt 'hello' \
+  --eagle-model /path/to/eagle_draft_model</code></pre>
+      <p>输出示例：</p>
+<pre><code>vanilla: 4 tokens, 4.92s, 0.81 tok/s
+eagle: 4 tokens, 2.34s, 1.71 tok/s
+exact token match: 1/1</code></pre>
+    </section>
+
+    <section>
+      <h2>11. 总结</h2>
+      <p>
+        在 nano-vLLM 上部署 EAGLE，关键不是简单地增加一个小模型，而是把 speculative decoding 的状态流接进推理系统：
+        target model 暴露 feature，draft model 生成候选，target model 一次验证多个 token，Scheduler 一次提交多个 token，
+        BlockManager 负责 lookahead KV block 的预留和回收。
+      </p>
+      <p>
+        这个版本保持默认路径不变，只在单序列 greedy decode 下显式进入 EAGLE 路径，适合作为继续扩展 tree draft、
+        非 greedy speculative sampling 和 batch EAGLE 的基础。
+      </p>
+    </section>
+  </main>
+</body>
+</html>
