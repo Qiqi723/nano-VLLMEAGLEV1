@@ -163,6 +163,29 @@
       background: var(--panel);
     }
 
+    .figure-card {
+      margin-top: 8px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fcfdff;
+    }
+
+    .figure-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .figure-card figcaption {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
     .flow {
       display: flex;
       flex-wrap: wrap;
@@ -320,6 +343,12 @@
         <p class="note">
           EAGLE 不直接决定最终输出。最终 token 仍由 target model 验证决定，所以 greedy 场景可以保持和 vanilla decoding 一致。
         </p>
+        <figure class="figure-card">
+          <img src="eaglev1.png" alt="EAGLE v1 推理示意图，展示 target model、draft model 和多 token verify 的关系">
+          <figcaption>
+            这张图展示了 EAGLE v1 的核心思路：target model 先提供 feature，draft 侧基于 feature 连续猜测多个 token，再由 target model 一次性验证这些候选，从而减少逐 token decode 的次数。
+          </figcaption>
+        </figure>
       </div>
     </section>
 
